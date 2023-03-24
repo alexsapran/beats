@@ -1028,13 +1028,7 @@ func (b *Beat) registerESVersionCheckCallback() error {
 }
 
 func (b *Beat) isConnectionToOlderVersionAllowed() bool {
-	config := struct {
-		AllowOlder bool `config:"allow_older_versions"`
-	}{false}
-
-	_ = b.Config.Output.Config().Unpack(&config)
-
-	return config.AllowOlder
+	return true
 }
 
 // registerESIndexManagement registers the loading of the template and ILM
