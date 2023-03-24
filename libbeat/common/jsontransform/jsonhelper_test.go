@@ -209,3 +209,39 @@ func TestWriteJSONKeys(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkWriteJSONKeys(b *testing.B) {
+	b.ReportAllocs()
+	now := time.Now()
+	now = now.Round(time.Second)
+
+	eventTimestamp := time.Date(2020, 01, 01, 01, 01, 00, 0, time.UTC)
+	eventMetadata := mapstr.M{
+		"foo": "bar",
+		"baz": mapstr.M{
+			"qux": 17,
+		},
+	}
+	eventFields := mapstr.M{
+		"top_a": 23,
+		"top_b": mapstr.M{
+			"inner_c": "see",
+			"inner_d": "dee",
+		},
+	}
+	event := &beat.Event{
+		Timestamp: eventTimestamp,
+		Meta:      eventMetadata.Clone(),
+		Fields:    eventFields.Clone(),
+	}
+	keys := map[string]interface{}{
+		"top_b": map[string]interface{}{
+			"inner_d.inner_e": "COMPLETELY_NEW_e",
+		},
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		WriteJSONKeys(event, keys, true, false, false)
+	}
+}
