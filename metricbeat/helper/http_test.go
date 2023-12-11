@@ -18,7 +18,9 @@
 package helper
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -292,6 +294,37 @@ func TestUserAgentCheck(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 	assert.Contains(t, ua, "Metricbeat")
+}
+
+func BenchmarkFetchResponse(b *testing.B) {
+	b.StopTimer()
+	b.ReportAllocs()
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("this is a test string of size 35b"))
+	}))
+	defer ts.Close()
+
+	cfg := defaultConfig()
+	hostData := mb.HostData{
+		URI:          ts.URL,
+		SanitizedURI: ts.URL,
+	}
+	var responseAssert []byte
+	h, _ := NewHTTPFromConfig(cfg, hostData)
+	responseBuffer := bytes.NewBuffer(nil)
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		res, _ := h.FetchResponse()
+		_, _ = io.Copy(responseBuffer, res.Body)
+		respClose := res.Body.Close()
+		assert.NoError(b, respClose)
+		if i == 0 {
+			responseAssert = responseBuffer.Bytes()
+		}
+		responseBuffer.Reset()
+	}
+	assert.Equal(b, responseAssert, []byte("this is a test string of size 35b"))
 }
 
 func checkTimeout(t *testing.T, h *HTTP) {
