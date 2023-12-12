@@ -20,8 +20,6 @@ package json
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-
 	"github.com/elastic/beats/v7/metricbeat/helper"
 	"github.com/elastic/beats/v7/metricbeat/mb"
 	"github.com/elastic/beats/v7/metricbeat/mb/parse"
@@ -128,7 +126,7 @@ func (m *MetricSet) Fetch(reporter mb.ReporterV2) error {
 		}
 	}()
 
-	body, err := ioutil.ReadAll(response.Body)
+	body, err := m.http.FetchContent()
 	if err != nil {
 		return err
 	}

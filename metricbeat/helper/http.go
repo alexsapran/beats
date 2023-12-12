@@ -20,7 +20,6 @@ package helper
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -39,14 +38,13 @@ var userAgent = useragent.UserAgent("Metricbeat", version.GetDefaultVersion(), v
 // HTTP is a custom HTTP Client that handle the complexity of connection and retrieving information
 // from HTTP endpoint.
 type HTTP struct {
-	hostData       mb.HostData
-	client         *http.Client // HTTP client that is reused across requests.
-	headers        http.Header
-	name           string
-	uri            string
-	method         string
-	body           []byte
-	responseBuffer *bytes.Buffer
+	hostData mb.HostData
+	client   *http.Client // HTTP client that is reused across requests.
+	headers  http.Header
+	name     string
+	uri      string
+	method   string
+	body     []byte
 }
 
 // NewHTTP creates new http helper
@@ -98,13 +96,12 @@ func NewHTTPFromConfig(config Config, hostData mb.HostData) (*HTTP, error) {
 	}
 
 	return &HTTP{
-		hostData:       hostData,
-		client:         client,
-		headers:        headers,
-		method:         "GET",
-		uri:            hostData.SanitizedURI,
-		body:           nil,
-		responseBuffer: bytes.NewBuffer(nil),
+		hostData: hostData,
+		client:   client,
+		headers:  headers,
+		method:   "GET",
+		uri:      hostData.SanitizedURI,
+		body:     nil,
 	}, nil
 }
 
@@ -117,9 +114,9 @@ func (h *HTTP) FetchResponse() (*http.Response, error) {
 	var err error
 	if h.body != nil {
 		reader := bytes.NewReader(h.body)
-		req, err = http.NewRequestWithContext(context.Background(), h.method, h.uri, reader)
+		req, err = http.NewRequest(h.method, h.uri, reader)
 	} else {
-		req, err = http.NewRequestWithContext(context.Background(), h.method, h.uri, nil)
+		req, err = http.NewRequest(h.method, h.uri, nil)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
@@ -178,20 +175,21 @@ func (h *HTTP) FetchContent() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	responseBytes := bytes.NewBuffer(make([]byte, 0, 1024*1024))
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close()
-		h.responseBuffer.Reset()
+		responseBytes = nil
 	}(resp.Body)
 
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("HTTP error %d in %s: %s", resp.StatusCode, h.name, resp.Status)
 	}
 
-	_, err = io.Copy(h.responseBuffer, resp.Body)
+	_, err = io.Copy(responseBytes, resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	return h.responseBuffer.Bytes(), nil
+	return responseBytes.Bytes(), nil
 }
 
 // FetchScanner returns a Scanner for the content.
